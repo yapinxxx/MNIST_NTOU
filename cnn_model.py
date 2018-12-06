@@ -87,9 +87,7 @@ class mnist_cnn_model:
         
         self.keep_prob =  tf.placeholder(tf.float32)
 
-    def set_value(self, img_placeholder, label_placeholder, W_conv1, W_conv2, b_conv1, b_conv2, W_fc1, W_fc2, b_fc1, b_fc2):
-        self.img_placeholder = img_placeholder
-        self.label_placeholder = label_placeholder
+    def set_value(self, W_conv1, W_conv2, b_conv1, b_conv2, W_fc1, W_fc2, b_fc1, b_fc2):
         self.W_conv1 = W_conv1
         self.b_conv1 = b_conv1
         self.W_conv2 = W_conv2
