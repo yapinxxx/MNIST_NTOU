@@ -1,4 +1,4 @@
-# MINST_NTOU
+# MNIST_NTOU
 add some new on MINST
 
 part 1    Make the train model
