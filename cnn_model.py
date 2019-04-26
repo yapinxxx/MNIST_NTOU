@@ -1,7 +1,8 @@
 
 # coding: utf-8
 
-# In[9]:
+# In[7]:
+
 
 
 #creating cnn model
@@ -24,10 +25,16 @@ def bias_variable(shape):
     initial = tf.constant(0.1, shape = shape)
     return tf.Variable(initial)
 
+
+
 #2-D CNN
 #stride(位移量) = [1, stride,stride, 1]
-def conv2d(x, W):
+def conv(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding = 'SAME')
+
+def relu(data):
+    return tf.nn.relu(data)
+
 
 #x(input) = [batch, height, width, channels]
 #ksize(窗口大小) = [1, height, width, 1]
@@ -35,21 +42,6 @@ def conv2d(x, W):
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding = 'SAME')
 
-
-
-
-
-def cnn_pooling(W, b, x_image):
-    h_conv = tf.nn.relu(conv2d(x_image, W) + b)
-    h_pool = max_pool_2x2(h_conv)
-    return h_pool
-
-
-def full_connect(W_fc, b_fc, h_pool):
-    h_pool_flat = tf.reshape(h_pool, [-1, 7 * 7 * 64])
-    #NOT CNN!!
-    h_fc = tf.nn.relu(tf.matmul(h_pool_flat, W_fc) + b_fc)
-    return h_fc
 
 def drop_out(h_fc, keep_prob):
     #dropout
@@ -65,8 +57,23 @@ def softmax(W_fc, b_fc, h_fc_drop):
 
 
 
+
+
+# In[ ]:
+
+
 #the whole cnn model
-class mnist_cnn_model:
+
+# model:
+# Input   ->   Conv   -> ReLU ->   Pool   ->   Conv   -> ReLU ->  Pool  -> Fully Conneted
+# 
+# size:(row * column * features)
+# 28*28*1 -> 28*28*32 -> .... -> 14*14*32 -> 14*14*64 -> .... -> 7*7*64 -> 1024
+
+
+
+
+class cnn_model:
     
     def __init__(self):
         
@@ -74,6 +81,7 @@ class mnist_cnn_model:
         self.label_placeholder = tf.placeholder(tf.float32, [None, 10])
         #input dimantion: -1(不考慮維度), size: 28*28, channel:1
         self.input_img = tf.reshape(self.img_placeholder, [-1, 28, 28, 1])
+        
         
         self.W_conv1 = weight_variable([5, 5, 1, 32]) 
         self.b_conv1 = bias_variable([32])
@@ -98,7 +106,30 @@ class mnist_cnn_model:
         self.b_fc2 = b_fc2
         return
     
+    def fully_connected(weight, bias, data):
+        flatten = tf.reshape(data, [-1, 7 * 7 * 64])
+        #NOT CNN!!
+        fc = tf.nn.relu(tf.matmul(flatten, weight) + bias)
+        return fc
+
+    
     def run_cnn(self):
+        conv1 = conv(self.input_img, self.W_conv1)
+        relu1 = relu(conv1 + self.b_conv1)
+        pool1 = max_pool_2x2(relu1)
+        
+        conv2 = conv(pool1, self.W_conv2)
+        relu2 = relu(conv2 + self.b_conv2)
+        pool2 = max_pool_2x2(relu2)
+        
+        fc = fully_connected(self.W_fc1, self.b_fc1, pool2)
+        fc_drop = drop_out(fc, self.keep_prob)
+        
+        y_predict = softmax(self.W_fc2, self.b_fc2, fc_drop)
+        
+        return y_predict
+        
+        '''
         h_pool1 = cnn_pooling(self.W_conv1, self.b_conv1, self.input_img)
         h_pool2 = cnn_pooling(self.W_conv2, self.b_conv2, h_pool1)
         
@@ -106,8 +137,8 @@ class mnist_cnn_model:
         h_fc_drop1 = drop_out(h_fc1, self.keep_prob)
         
         y_predict = softmax(self.W_fc2, self.b_fc2, h_fc_drop1)
-     
         return y_predict
+        '''
     
     def details(self):
         print("{:30}:{}".format("convolution weight 1", self.W_conv1))
@@ -121,4 +152,71 @@ class mnist_cnn_model:
         print("{:30}:{}".format("full connected bias 2", self.b_fc2))
         return
         
+
+
+
+# In[11]:
+
+
+# model:
+# Input   ->   Conv1  -> ReLU1->   Conv2  -> ReLU2->   Pool1  -> ReLU3->    Conv3  -> ReLU4->   Pool2 -> Fully Conneted
+# 
+# size:(row * column * features)
+# 28*28*1 -> 28*28*32 -> .... -> 28*28*64 -> .... -> 14*14*64 -> .... -> 14*14*128 -> .... -> 7*7*128 ->1024
+
+
+
+
+class cnn_model_2:
+    
+    def __init__(self):
+        
+        self.img_placeholder = tf.placeholder(tf.float32, [None, 784])
+        self.label_placeholder = tf.placeholder(tf.float32, [None, 10])
+        #input dimantion: -1(不考慮維度), size: 28*28, channel:1
+        self.input_img = tf.reshape(self.img_placeholder, [-1, 28, 28, 1])
+        
+        self.W_conv1 = weight_variable([5, 5, 1, 32]) 
+        self.W_conv2 = weight_variable([5, 5, 32, 64])
+        self.W_conv3 = weight_variable([5, 5, 64, 128])
+        
+        self.b_conv1 = bias_variable([32])
+        self.b_conv2 = bias_variable([64])
+        self.b_conv3 = bias_variable([128])
+    
+        self.W_fc1 = weight_variable([7 * 7 * 128, 2048])
+        self.W_fc2 = weight_variable([2048, 10])
+        self.b_fc1 = bias_variable([2048])
+        self.b_fc2 = bias_variable([10])
+        
+        self.keep_prob =  tf.placeholder(tf.float32)
+
+    def fully_connected(weight, bias, data):
+        flatten = tf.reshape(data, [-1, 7 * 7 * 128])
+        #NOT CNN!!
+        fc = tf.nn.relu(tf.matmul(flatten, weight) + bias)
+        return fc
+
+    
+    def run_cnn(self):
+        conv1 = conv(self.input_img, self.W_conv1)
+        relu1 = relu(conv1 + self.b_conv1)
+        
+        conv2 = conv(relu1, self.W_conv2)
+        relu2 = relu(conv2 + self.b_conv2)
+        
+        pool1 = max_pool_2x2(relu2)
+        relu3 = relu(pool1)
+        
+        conv3 = conv(relu2, self.W_conv3)
+        relu4 = relu(conv3 + self.b_conv3)
+        pool2 = max_pool_2x2(relu4)
+        fc = fully_connected(self.W_fc1, self.b_fc1, pool2)
+        fc_drop = drop_out(fc, self.keep_prob)
+        
+        y_predict = softmax(self.W_fc2, self.b_fc2, fc_drop)
+        
+        return y_predict
+    
+    
 
